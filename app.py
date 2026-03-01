@@ -1,21 +1,23 @@
+import bisect
 import hmac
 import logging
 import os
 import time
+from dataclasses import dataclass
 from threading import Lock
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from fastapi import FastAPI, Header, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-def _parse_api_keys() -> List[str]:
+def _parse_api_keys() -> Tuple[str, ...]:
     keys_csv = os.getenv("MT5_API_KEYS", "")
     keys = [item.strip() for item in keys_csv.split(",") if item.strip()]
     single_key = os.getenv("MT5_API_KEY", "your-secret-key").strip()
     if single_key and single_key not in keys:
         keys.append(single_key)
-    return keys
+    return tuple(keys)
 
 
 def _parse_int_env(name: str, default: int) -> int:
@@ -26,14 +28,23 @@ def _parse_int_env(name: str, default: int) -> int:
         return default
 
 
+def _parse_bool_env(name: str, default: bool) -> bool:
+    raw = os.getenv(name, "1" if default else "0").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
 class AppConfig(BaseModel):
-    api_keys: List[str]
+    model_config = ConfigDict(frozen=True)
+
+    api_keys: Tuple[str, ...]
     max_ts_drift_sec: int
+    log_heartbeats: bool
 
 
 CONFIG = AppConfig(
     api_keys=_parse_api_keys(),
     max_ts_drift_sec=max(0, _parse_int_env("MT5_MAX_TS_DRIFT_SEC", 300)),
+    log_heartbeats=_parse_bool_env("MT5_LOG_HEARTBEAT", True),
 )
 
 logger = logging.getLogger("mt5_heartbeat")
@@ -42,12 +53,21 @@ if not logger.handlers:
 
 app = FastAPI(title="MT5 Heartbeat API", version="2.0.0")
 
-STARTED_AT = time.time()
-_latest_heartbeats: Dict[str, "StoredHeartbeat"] = {}
+STARTED_MONOTONIC = time.monotonic()
+_latest_heartbeats: Dict[str, "StoredHeartbeatRecord"] = {}
+_sorted_terminal_ids: List[str] = []
 _store_lock = Lock()
 
 
+@dataclass(slots=True)
+class StoredHeartbeatRecord:
+    received_at: int
+    payload: "HeartbeatPayload"
+
+
 class HeartbeatPayload(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     login: int = Field(description="MT5 account login ID")
     server: str = Field(min_length=1, max_length=128)
     terminal_id: str = Field(min_length=1, max_length=128)
@@ -59,6 +79,9 @@ class HeartbeatPayload(BaseModel):
     trades_last_3d: Optional[int] = Field(default=None, ge=0)
     volume_last_3d: Optional[float] = None
     profit_last_3d: Optional[float] = None
+    trades_last_7d: Optional[int] = Field(default=None, ge=0)
+    volume_last_7d: Optional[float] = None
+    profit_last_7d: Optional[float] = None
     connected: Optional[bool] = None
     build: Optional[int] = Field(default=None, ge=0)
     balance: Optional[float] = None
@@ -99,8 +122,7 @@ def _is_authorized(x_api_key: Optional[str]) -> bool:
     return False
 
 
-def _validate_timestamp(ts: int) -> None:
-    now = int(time.time())
+def _validate_timestamp(ts: int, now: int) -> None:
     if abs(now - ts) > CONFIG.max_ts_drift_sec:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -115,9 +137,9 @@ def _validate_timestamp(ts: int) -> None:
 def health() -> HealthResponse:
     with _store_lock:
         tracked = len(_latest_heartbeats)
-    return HealthResponse(
+    return HealthResponse.model_construct(
         ok=True,
-        uptime_sec=max(0, int(time.time() - STARTED_AT)),
+        uptime_sec=max(0, int(time.monotonic() - STARTED_MONOTONIC)),
         tracked_terminals=tracked,
         max_ts_drift_sec=CONFIG.max_ts_drift_sec,
     )
@@ -132,13 +154,13 @@ def get_latest_heartbeat(terminal_id: str) -> StoredHeartbeat:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No heartbeat found for terminal_id={terminal_id}",
         )
-    return latest
+    return StoredHeartbeat.model_construct(received_at=latest.received_at, payload=latest.payload)
 
 
 @app.get("/mt5/heartbeat/terminals", response_model=List[str])
 def list_terminals() -> List[str]:
     with _store_lock:
-        terminal_ids = sorted(_latest_heartbeats.keys())
+        terminal_ids = _sorted_terminal_ids.copy()
     return terminal_ids
 
 
@@ -153,23 +175,26 @@ def mt5_heartbeat(
             detail="Invalid API key",
         )
 
-    _validate_timestamp(payload.ts)
     received_at = int(time.time())
-    stored = StoredHeartbeat(received_at=received_at, payload=payload)
+    _validate_timestamp(payload.ts, received_at)
+    stored = StoredHeartbeatRecord(received_at=received_at, payload=payload)
 
     with _store_lock:
+        if payload.terminal_id not in _latest_heartbeats:
+            bisect.insort(_sorted_terminal_ids, payload.terminal_id)
         _latest_heartbeats[payload.terminal_id] = stored
 
-    logger.info(
-        "Heartbeat received terminal_id=%s login=%s server=%s algo_active=%s last_error=%s",
-        payload.terminal_id,
-        payload.login,
-        payload.server,
-        payload.algo_active,
-        payload.last_error,
-    )
+    if CONFIG.log_heartbeats:
+        logger.info(
+            "Heartbeat received terminal_id=%s login=%s server=%s algo_active=%s last_error=%s",
+            payload.terminal_id,
+            payload.login,
+            payload.server,
+            payload.algo_active,
+            payload.last_error,
+        )
 
-    return HeartbeatAck(
+    return HeartbeatAck.model_construct(
         ok=True,
         received_at=received_at,
         terminal_id=payload.terminal_id,
