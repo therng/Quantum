@@ -5,8 +5,8 @@
 #property strict
 #property description "Whitelist ApiUrl in MT5: Tools > Options > Expert Advisors > Allow WebRequest"
 
-input string ApiUrl            = "http://127.0.0.1:8000/mt5/heartbeat";
-input string ApiKey            = "your-secret-key";
+input string ApiUrl            = "http://127.0.0.1:3000/mt5/heartbeat";
+input string ApiKey            = "therng";
 input int    PeriodSec         = 30;
 input string TerminalId        = "MT5-A1";
 input int    RequestTimeoutMs  = 3000;
@@ -184,7 +184,7 @@ string BuildPayload()
    double balance       = AccountInfoDouble(ACCOUNT_BALANCE);
    double equity        = AccountInfoDouble(ACCOUNT_EQUITY);
    double margin        = AccountInfoDouble(ACCOUNT_MARGIN);
-   double free_m        = AccountInfoDouble(ACCOUNT_FREEMARGIN);
+   double free_m        = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
    double mlevel        = AccountInfoDouble(ACCOUNT_MARGIN_LEVEL);
 
    int pos_total        = 0;
@@ -198,32 +198,32 @@ string BuildPayload()
 
    string body =
       "{"
-      "\"login\":" + (string)g_identity_cache.login + ","
-      "\"server\":\"" + g_identity_cache.server + "\","
-      "\"terminal_id\":\"" + g_identity_cache.terminal_id + "\","
-      "\"terminal_active\":" + JsonBool(terminal_active) + ","
-      "\"algo_active\":" + JsonBool(algo_active) + ","
-      "\"ts\":" + (string)ts + ","
-      "\"account_name\":\"" + g_identity_cache.account_name + "\","
-      "\"latency_ms\":" + (string)latency_ms + ","
-      "\"trades_last_3d\":" + (string)stats.trades + ","
-      "\"volume_last_3d\":" + JsonNumber(stats.volume) + ","
-      "\"profit_last_3d\":" + JsonNumber(stats.profit) + ","
-      "\"trades_last_7d\":" + (string)week_stats.trades + ","
-      "\"volume_last_7d\":" + JsonNumber(week_stats.volume) + ","
-      "\"profit_last_7d\":" + JsonNumber(week_stats.profit) + ","
-      "\"connected\":" + JsonBool(connected) + ","
-      "\"build\":" + (string)g_identity_cache.build + ","
-      "\"balance\":" + JsonNumber(balance) + ","
-      "\"equity\":" + JsonNumber(equity) + ","
-      "\"margin\":" + JsonNumber(margin) + ","
-      "\"free_margin\":" + JsonNumber(free_m) + ","
-      "\"margin_level\":" + JsonNumber(mlevel) + ","
-      "\"positions_total\":" + (string)pos_total + ","
-      "\"orders_total\":" + (string)ord_total + ","
-      "\"floating_pl\":" + JsonNumber(float_pl) + ","
-      "\"last_error\":" + (string)last_error
-      "}";
+      + "\"login\":" + (string)g_identity_cache.login + ","
+      + "\"server\":\"" + g_identity_cache.server + "\","
+      + "\"terminal_id\":\"" + g_identity_cache.terminal_id + "\","
+      + "\"terminal_active\":" + JsonBool(terminal_active) + ","
+      + "\"algo_active\":" + JsonBool(algo_active) + ","
+      + "\"ts\":" + (string)ts + ","
+      + "\"account_name\":\"" + g_identity_cache.account_name + "\","
+      + "\"latency_ms\":" + (string)latency_ms + ","
+      + "\"trades_last_3d\":" + (string)stats.trades + ","
+      + "\"volume_last_3d\":" + JsonNumber(stats.volume) + ","
+      + "\"profit_last_3d\":" + JsonNumber(stats.profit) + ","
+      + "\"trades_last_7d\":" + (string)week_stats.trades + ","
+      + "\"volume_last_7d\":" + JsonNumber(week_stats.volume) + ","
+      + "\"profit_last_7d\":" + JsonNumber(week_stats.profit) + ","
+      + "\"connected\":" + JsonBool(connected) + ","
+      + "\"build\":" + (string)g_identity_cache.build + ","
+      + "\"balance\":" + JsonNumber(balance) + ","
+      + "\"equity\":" + JsonNumber(equity) + ","
+      + "\"margin\":" + JsonNumber(margin) + ","
+      + "\"free_margin\":" + JsonNumber(free_m) + ","
+      + "\"margin_level\":" + JsonNumber(mlevel) + ","
+      + "\"positions_total\":" + (string)pos_total + ","
+      + "\"orders_total\":" + (string)ord_total + ","
+      + "\"floating_pl\":" + JsonNumber(float_pl) + ","
+      + "\"last_error\":" + (string)last_error
+      + "}";
 
    return body;
 }
