@@ -12,9 +12,15 @@ Content type:
 
 ## Authentication
 
-- `POST /mt5/heartbeat` requires header `X-API-Key`.
-- Valid keys come from `MT5_API_KEY` and optional `MT5_API_KEYS` (comma-separated).
-- `GET` endpoints do not require API key.
+- `POST /mt5/heartbeat` requires header `X-API-Key` (WRITE key).
+- Valid WRITE keys come from `MT5_API_KEY` and optional `MT5_API_KEYS` (comma-separated).
+- All `GET` endpoints (except `GET /health`) require header `X-API-Key` (READ key).
+- Valid READ keys come from `MT5_READ_API_KEY` and optional `MT5_READ_API_KEYS` (comma-separated). If unset, READ falls back to WRITE keys.
+
+## CORS (browser access)
+
+- If the frontend calls this API directly from the browser, set `CORS_ALLOW_ORIGINS` (comma-separated origins, e.g. an ngrok domain).
+- If unset, CORS middleware is disabled (browser calls will be blocked by the browser).
 
 ## Timestamp Validation
 
@@ -178,6 +184,7 @@ Summary includes:
 - `algo_trading_pct` sample-weighted percent of stored heartbeats with `algo_active=true` in that period (null if `samples=0`)
 - `max_deposit_load` calculated from stored heartbeat series in that period
 - `maximum_drawdown` and `maximum_drawdown_pct` calculated from equity curve in that period
+- if no heartbeat records exist in the selected period (`samples=0`), curve-derived fields can be `null`
 
 Success `200` example:
 

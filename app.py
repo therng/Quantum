@@ -10,7 +10,8 @@ from threading import Lock
 from typing import Dict, List, Literal, Optional, Tuple
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Header, HTTPException, Query, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
 from windows_monitor import MonitorUnavailableError, WindowsSystemMonitor
@@ -59,6 +60,7 @@ class AppConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     api_keys: Tuple[str, ...]
+    read_api_keys: Tuple[str, ...]
     max_ts_drift_sec: int
     log_heartbeats: bool
     history_retention_sec: int
@@ -66,8 +68,21 @@ class AppConfig(BaseModel):
     system_monitor_min_refresh_sec: float
 
 
+def _parse_read_api_keys() -> Tuple[str, ...]:
+    keys_csv = os.getenv("MT5_READ_API_KEYS", "")
+    keys = [item.strip() for item in keys_csv.split(",") if item.strip()]
+    single_key = os.getenv("MT5_READ_API_KEY", "").strip()
+    if single_key and single_key not in keys:
+        keys.append(single_key)
+    return tuple(keys)
+
+
+_WRITE_API_KEYS = _parse_api_keys()
+_READ_API_KEYS = _parse_read_api_keys() or _WRITE_API_KEYS
+
 CONFIG = AppConfig(
-    api_keys=_parse_api_keys(),
+    api_keys=_WRITE_API_KEYS,
+    read_api_keys=_READ_API_KEYS,
     max_ts_drift_sec=max(0, _parse_int_env("MT5_MAX_TS_DRIFT_SEC", 300)),
     log_heartbeats=_parse_bool_env("MT5_LOG_HEARTBEAT", True),
     history_retention_sec=max(3600, _parse_int_env("MT5_HISTORY_RETENTION_SEC", 45 * 24 * 60 * 60)),
@@ -80,6 +95,27 @@ if not logger.handlers:
     logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="MT5 Heartbeat API", version="3.0.0")
+
+
+def _parse_cors_allow_origins() -> List[str]:
+    raw = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
+    if not raw:
+        return []
+    if raw == "*":
+        return ["*"]
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+_cors_origins = _parse_cors_allow_origins()
+if _cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "X-API-Key", "Accept"],
+        allow_credentials=False,
+        max_age=600,
+    )
 
 STARTED_MONOTONIC = time.monotonic()
 _latest_heartbeats: Dict[str, "StoredHeartbeatRecord"] = {}
@@ -314,6 +350,28 @@ def _is_authorized(x_api_key: Optional[str]) -> bool:
         if hmac.compare_digest(candidate, key):
             return True
     return False
+
+
+def _is_read_authorized(x_api_key: Optional[str]) -> bool:
+    if not x_api_key:
+        return False
+    candidate = x_api_key.strip()
+    if not candidate:
+        return False
+    for key in CONFIG.read_api_keys:
+        if hmac.compare_digest(candidate, key):
+            return True
+    return False
+
+
+def _require_read_api_key(
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+) -> None:
+    if not _is_read_authorized(x_api_key):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key",
+        )
 
 
 def _validate_timestamp(ts: int, now: int) -> None:
@@ -645,7 +703,11 @@ def health() -> HealthResponse:
     )
 
 
-@app.get("/monitor/system/realtime", response_model=SystemRealtimeResponse)
+@app.get(
+    "/monitor/system/realtime",
+    response_model=SystemRealtimeResponse,
+    dependencies=[Depends(_require_read_api_key)],
+)
 def monitor_system_realtime(force: bool = Query(default=False)) -> SystemRealtimeResponse:
     try:
         data = _system_monitor.snapshot(force=force)
@@ -658,20 +720,32 @@ def monitor_system_realtime(force: bool = Query(default=False)) -> SystemRealtim
     return SystemRealtimeResponse.model_validate(data)
 
 
-@app.get("/mt5/heartbeat/latest/{terminal_id}", response_model=StoredHeartbeat)
+@app.get(
+    "/mt5/heartbeat/latest/{terminal_id}",
+    response_model=StoredHeartbeat,
+    dependencies=[Depends(_require_read_api_key)],
+)
 def get_latest_heartbeat(terminal_id: str) -> StoredHeartbeat:
     latest, _ = _get_terminal_state(terminal_id)
     return StoredHeartbeat.model_construct(received_at=latest.received_at, payload=latest.payload)
 
 
-@app.get("/mt5/heartbeat/terminals", response_model=List[str])
+@app.get(
+    "/mt5/heartbeat/terminals",
+    response_model=List[str],
+    dependencies=[Depends(_require_read_api_key)],
+)
 def list_terminals() -> List[str]:
     with _store_lock:
         terminal_ids = _sorted_terminal_ids.copy()
     return terminal_ids
 
 
-@app.get("/mt5/heartbeat/overview", response_model=List[TerminalOverview])
+@app.get(
+    "/mt5/heartbeat/overview",
+    response_model=List[TerminalOverview],
+    dependencies=[Depends(_require_read_api_key)],
+)
 def get_overview() -> List[TerminalOverview]:
     with _store_lock:
         terminal_ids = _sorted_terminal_ids.copy()
@@ -706,12 +780,20 @@ def get_overview() -> List[TerminalOverview]:
     return overview
 
 
-@app.get("/mt5/heartbeat/summary/{terminal_id}/{period}", response_model=PeriodSummary)
+@app.get(
+    "/mt5/heartbeat/summary/{terminal_id}/{period}",
+    response_model=PeriodSummary,
+    dependencies=[Depends(_require_read_api_key)],
+)
 def get_period_summary(terminal_id: str, period: Literal["day", "week", "month"]) -> PeriodSummary:
     return _build_period_summary(terminal_id, period)
 
 
-@app.get("/mt5/heartbeat/dashboard/{terminal_id}", response_model=HeartbeatDashboard)
+@app.get(
+    "/mt5/heartbeat/dashboard/{terminal_id}",
+    response_model=HeartbeatDashboard,
+    dependencies=[Depends(_require_read_api_key)],
+)
 def get_dashboard(terminal_id: str) -> HeartbeatDashboard:
     latest, history = _get_terminal_state(terminal_id)
     now_ts = int(time.time())
@@ -748,7 +830,11 @@ def get_dashboard(terminal_id: str) -> HeartbeatDashboard:
     )
 
 
-@app.get("/mt5/heartbeat/history/{terminal_id}", response_model=List[StoredHeartbeat])
+@app.get(
+    "/mt5/heartbeat/history/{terminal_id}",
+    response_model=List[StoredHeartbeat],
+    dependencies=[Depends(_require_read_api_key)],
+)
 def get_history(
     terminal_id: str,
     period: Literal["day", "week", "month", "all"] = Query(default="day"),
@@ -770,7 +856,11 @@ def get_history(
     ]
 
 
-@app.get("/mt5/heartbeat/curve/{terminal_id}", response_model=List[CurvePoint])
+@app.get(
+    "/mt5/heartbeat/curve/{terminal_id}",
+    response_model=List[CurvePoint],
+    dependencies=[Depends(_require_read_api_key)],
+)
 def get_curve(
     terminal_id: str,
     period: Literal["day", "week", "month", "all"] = Query(default="week"),
@@ -802,7 +892,11 @@ def get_curve(
     return points
 
 
-@app.get("/mt5/heartbeat/growth/{terminal_id}", response_model=GrowthSeriesResponse)
+@app.get(
+    "/mt5/heartbeat/growth/{terminal_id}",
+    response_model=GrowthSeriesResponse,
+    dependencies=[Depends(_require_read_api_key)],
+)
 def get_growth(
     terminal_id: str,
     period: Literal["day", "week", "month", "all"] = Query(default="week"),
