@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 # Python
 __pycache__/
 *.py[cod]
@@ -39,9 +40,35 @@ pip-delete-this-directory.txt
 Thumbs.db
 
 # Environment
-.env
+.env*
 .env.local
 .env.*.local
 
 # Logs
 *.log
+=======
+# Virtual environment
+.venv/
+
+# Python artifacts
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Environment files
+.env
+.env.*
+
+# Logs
+logs/
+
+# Editor directories
+.vscode/
+.idea/
+
+# System files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+>>>>>>> Stashed changes

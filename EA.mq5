@@ -5,7 +5,7 @@
 #property strict
 #property description "Whitelist ApiUrl in MT5: Tools > Options > Expert Advisors > Allow WebRequest"
 
-input string ApiUrl            = "http://127.0.0.1:3000/mt5/heartbeat";
+input string ApiUrl            = "http://127.0.0.1:8000/mt5/heartbeat";
 input string ApiKey            = "therng";
 input int    PeriodSec         = 30;
 input string TerminalId        = "MT5-A1";
@@ -170,8 +170,9 @@ bool BuildPostData(const string body, char &post[])
 
 string BuildPayload()
 {
-   datetime now       = TimeCurrent();
-   long ts            = (long)now;
+   datetime now_server = TimeCurrent();
+   datetime now_utc    = TimeGMT();
+   long ts             = (long)now_utc;
    int latency_ms     = (int)TerminalInfoInteger(TERMINAL_PING_LAST);
    int last_error     = (int)GetLastError();
 
@@ -194,7 +195,7 @@ string BuildPayload()
 
    Last3DaysStats stats;
    Last3DaysStats week_stats;
-   CalcRecentStats(stats, week_stats, now);
+   CalcRecentStats(stats, week_stats, now_server);
 
    string body =
       "{"

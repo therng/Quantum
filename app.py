@@ -4,17 +4,21 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from threading import Lock
 from typing import Dict, List, Optional, Tuple
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
+
+load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
 
 
 def _parse_api_keys() -> Tuple[str, ...]:
     keys_csv = os.getenv("MT5_API_KEYS", "")
     keys = [item.strip() for item in keys_csv.split(",") if item.strip()]
-    single_key = os.getenv("MT5_API_KEY", "your-secret-key").strip()
+    single_key = os.getenv("MT5_API_KEY", "therng").strip()
     if single_key and single_key not in keys:
         keys.append(single_key)
     return tuple(keys)
@@ -31,6 +35,13 @@ def _parse_int_env(name: str, default: int) -> int:
 def _parse_bool_env(name: str, default: bool) -> bool:
     raw = os.getenv(name, "1" if default else "0").strip().lower()
     return raw in {"1", "true", "yes", "on"}
+
+
+def _parse_port_env(name: str, default: int) -> int:
+    port = _parse_int_env(name, default)
+    if 1 <= port <= 65535:
+        return port
+    return default
 
 
 class AppConfig(BaseModel):
@@ -116,8 +127,11 @@ class HealthResponse(BaseModel):
 def _is_authorized(x_api_key: Optional[str]) -> bool:
     if not x_api_key:
         return False
+    candidate = x_api_key.strip()
+    if not candidate:
+        return False
     for key in CONFIG.api_keys:
-        if hmac.compare_digest(x_api_key, key):
+        if hmac.compare_digest(candidate, key):
             return True
     return False
 
@@ -199,3 +213,24 @@ def mt5_heartbeat(
         received_at=received_at,
         terminal_id=payload.terminal_id,
     )
+
+
+def _run() -> None:
+    import uvicorn
+
+    host = os.getenv("APP_HOST", "0.0.0.0").strip() or "0.0.0.0"
+    port = _parse_port_env("APP_PORT", 8000)
+    log_level = os.getenv("APP_LOG_LEVEL", "info").strip().lower() or "info"
+    reload_enabled = _parse_bool_env("APP_RELOAD", False)
+
+    uvicorn.run(
+        "app:app",
+        host=host,
+        port=port,
+        log_level=log_level,
+        reload=reload_enabled,
+    )
+
+
+if __name__ == "__main__":
+    _run()

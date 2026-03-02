@@ -2,6 +2,8 @@
 
 FastAPI service that receives and stores MT5 terminal heartbeats in memory.
 
+API reference: see `API_ENDPOINTS.md`.
+
 ## What it does
 
 - Accepts signed heartbeat payloads from MT5 EAs.
@@ -24,13 +26,14 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -U pip
 pip install -r requirements.txt
+cp .env.example .env
 ```
 
 ## Run locally
 
 ```bash
-export MT5_API_KEY="replace-with-strong-secret"
-python run_app.py
+# edit .env first
+python -m uvicorn app:app --host 0.0.0.0 --port 8000 --log-level info
 ```
 
 Default bind is `0.0.0.0:8000`.
@@ -43,10 +46,8 @@ Default bind is `0.0.0.0:8000`.
 | `MT5_API_KEYS` | empty | Optional comma-separated additional keys. |
 | `MT5_MAX_TS_DRIFT_SEC` | `300` | Max allowed heartbeat timestamp drift in seconds. |
 | `MT5_LOG_HEARTBEAT` | `1` | Log each accepted heartbeat (`1/true/yes/on` enables). |
-| `APP_HOST` | `0.0.0.0` | Uvicorn host. |
-| `APP_PORT` | `8000` | Uvicorn port. |
-| `APP_LOG_LEVEL` | `info` | Uvicorn log level. |
-| `APP_RELOAD` | `0` | Enables auto-reload in development. |
+
+Values can be provided through a local `.env` file (example: `.env.example`).
 
 ## API quick check
 
@@ -147,3 +148,4 @@ Remove ngrok service:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\windows\remove_ngrok_service.ps1
 ```
+
