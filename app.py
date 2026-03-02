@@ -93,8 +93,46 @@ class HeartbeatPayload(BaseModel):
     trades_last_7d: Optional[int] = Field(default=None, ge=0)
     volume_last_7d: Optional[float] = None
     profit_last_7d: Optional[float] = None
+    day_trades: Optional[int] = Field(default=None, ge=0)
+    day_trades_long: Optional[int] = Field(default=None, ge=0)
+    day_trades_short: Optional[int] = Field(default=None, ge=0)
+    day_profit_total: Optional[float] = None
+    day_volume_lot: Optional[float] = Field(default=None, ge=0)
+    day_profit_trades: Optional[int] = Field(default=None, ge=0)
+    day_profit_trade_rate: Optional[float] = Field(default=None, ge=0, le=100)
+    day_loss_trades: Optional[int] = Field(default=None, ge=0)
+    day_loss_trade_rate: Optional[float] = Field(default=None, ge=0, le=100)
+    day_trading_activity: Optional[float] = Field(default=None, ge=0, le=100)
+    day_max_deposit_load: Optional[float] = Field(default=None, ge=0)
+    day_maximum_drawdown: Optional[float] = Field(default=None, ge=0)
+    day_maximum_drawdown_pct: Optional[float] = Field(default=None, ge=0)
+    week_trades: Optional[int] = Field(default=None, ge=0)
+    week_trades_long: Optional[int] = Field(default=None, ge=0)
+    week_trades_short: Optional[int] = Field(default=None, ge=0)
+    week_profit_total: Optional[float] = None
+    week_volume_lot: Optional[float] = Field(default=None, ge=0)
+    week_profit_trades: Optional[int] = Field(default=None, ge=0)
+    week_profit_trade_rate: Optional[float] = Field(default=None, ge=0, le=100)
+    week_loss_trades: Optional[int] = Field(default=None, ge=0)
+    week_loss_trade_rate: Optional[float] = Field(default=None, ge=0, le=100)
+    week_trading_activity: Optional[float] = Field(default=None, ge=0, le=100)
+    week_max_deposit_load: Optional[float] = Field(default=None, ge=0)
+    week_maximum_drawdown: Optional[float] = Field(default=None, ge=0)
+    week_maximum_drawdown_pct: Optional[float] = Field(default=None, ge=0)
+    month_trades: Optional[int] = Field(default=None, ge=0)
+    month_trades_long: Optional[int] = Field(default=None, ge=0)
+    month_trades_short: Optional[int] = Field(default=None, ge=0)
+    month_profit_total: Optional[float] = None
+    month_volume_lot: Optional[float] = Field(default=None, ge=0)
+    month_profit_trades: Optional[int] = Field(default=None, ge=0)
+    month_profit_trade_rate: Optional[float] = Field(default=None, ge=0, le=100)
+    month_loss_trades: Optional[int] = Field(default=None, ge=0)
+    month_loss_trade_rate: Optional[float] = Field(default=None, ge=0, le=100)
+    month_trading_activity: Optional[float] = Field(default=None, ge=0, le=100)
+    month_max_deposit_load: Optional[float] = Field(default=None, ge=0)
+    month_maximum_drawdown: Optional[float] = Field(default=None, ge=0)
+    month_maximum_drawdown_pct: Optional[float] = Field(default=None, ge=0)
     connected: Optional[bool] = None
-    build: Optional[int] = Field(default=None, ge=0)
     balance: Optional[float] = None
     equity: Optional[float] = None
     margin: Optional[float] = None

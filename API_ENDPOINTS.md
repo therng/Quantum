@@ -3,7 +3,7 @@
 Base URL:
 
 - `http://<host>:<port>`
-- Local default is usually `http://127.0.0.1:8000` (or your configured uvicorn port).
+- Local default is `http://127.0.0.1:8000`
 
 Content type:
 
@@ -41,7 +41,7 @@ Success `200`:
 
 ### POST `/mt5/heartbeat`
 
-Accepts a heartbeat payload and stores the latest value per `terminal_id`.
+Accepts one heartbeat payload and stores the latest value per `terminal_id`.
 
 Headers:
 
@@ -55,20 +55,16 @@ Required JSON fields:
 - `terminal_id` (string, 1..128)
 - `terminal_active` (boolean)
 - `algo_active` (boolean)
-- `ts` (integer unix timestamp)
+- `ts` (integer unix timestamp, UTC)
 
 Optional JSON fields:
 
+- Identity / status
 - `account_name` (string, max 256)
 - `latency_ms` (integer, >= 0)
-- `trades_last_3d` (integer, >= 0)
-- `volume_last_3d` (number)
-- `profit_last_3d` (number)
-- `trades_last_7d` (integer, >= 0)
-- `volume_last_7d` (number)
-- `profit_last_7d` (number)
 - `connected` (boolean)
-- `build` (integer, >= 0)
+- `last_error` (integer)
+- Account / exposure
 - `balance` (number)
 - `equity` (number)
 - `margin` (number)
@@ -77,7 +73,27 @@ Optional JSON fields:
 - `positions_total` (integer, >= 0)
 - `orders_total` (integer, >= 0)
 - `floating_pl` (number)
-- `last_error` (integer)
+- Legacy optional stats (still accepted)
+- `trades_last_3d` (integer, >= 0)
+- `volume_last_3d` (number)
+- `profit_last_3d` (number)
+- `trades_last_7d` (integer, >= 0)
+- `volume_last_7d` (number)
+- `profit_last_7d` (number)
+- Period metrics from `Pusher.mq5`:
+- `day_trades`, `week_trades`, `month_trades` (integer, >= 0)
+- `day_trades_long`, `week_trades_long`, `month_trades_long` (integer, >= 0)
+- `day_trades_short`, `week_trades_short`, `month_trades_short` (integer, >= 0)
+- `day_profit_total`, `week_profit_total`, `month_profit_total` (number)
+- `day_volume_lot`, `week_volume_lot`, `month_volume_lot` (number, >= 0)
+- `day_profit_trades`, `week_profit_trades`, `month_profit_trades` (integer, >= 0)
+- `day_loss_trades`, `week_loss_trades`, `month_loss_trades` (integer, >= 0)
+- `day_profit_trade_rate`, `week_profit_trade_rate`, `month_profit_trade_rate` (number, 0..100)
+- `day_loss_trade_rate`, `week_loss_trade_rate`, `month_loss_trade_rate` (number, 0..100)
+- `day_trading_activity`, `week_trading_activity`, `month_trading_activity` (number, 0..100)
+- `day_max_deposit_load`, `week_max_deposit_load`, `month_max_deposit_load` (number, >= 0)
+- `day_maximum_drawdown`, `week_maximum_drawdown`, `month_maximum_drawdown` (number, >= 0)
+- `day_maximum_drawdown_pct`, `week_maximum_drawdown_pct`, `month_maximum_drawdown_pct` (number, >= 0)
 
 Notes:
 
@@ -142,7 +158,10 @@ Success `200`:
     "terminal_id": "MT5-A1",
     "terminal_active": true,
     "algo_active": true,
-    "ts": 1700000000
+    "ts": 1700000000,
+    "day_trades": 3,
+    "week_trades": 9,
+    "month_trades": 40
   }
 }
 ```
@@ -167,7 +186,13 @@ curl -s -X POST http://127.0.0.1:8000/mt5/heartbeat \
     "terminal_id": "MT5-A1",
     "terminal_active": true,
     "algo_active": true,
-    "ts": 1700000000
+    "ts": 1700000000,
+    "day_trades": 2,
+    "week_trades": 8,
+    "month_trades": 24,
+    "day_profit_total": 120.50,
+    "week_profit_total": 450.20,
+    "month_profit_total": 980.80
   }'
 ```
 
@@ -176,5 +201,3 @@ curl -s http://127.0.0.1:8000/health
 curl -s http://127.0.0.1:8000/mt5/heartbeat/terminals
 curl -s http://127.0.0.1:8000/mt5/heartbeat/latest/MT5-A1
 ```
-
-
