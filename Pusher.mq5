@@ -18,7 +18,6 @@ input bool   SendDisconnectOnDeinit = true;
 #define DAY_WINDOW_SEC              (1 * 24 * 60 * 60)
 #define WEEK_WINDOW_SEC             (7 * 24 * 60 * 60)
 #define MONTH_WINDOW_SEC            (30 * 24 * 60 * 60)
-#define MAX_PERIOD_DAYS             30
 
 struct PeriodStats
 {
@@ -33,9 +32,6 @@ struct PeriodStats
    double win_rate;
    double loss_rate;
    double trading_activity;
-   double max_deposit_load;
-   double maximum_drawdown;
-   double maximum_drawdown_pct;
 };
 
 struct IdentityCache
@@ -98,9 +94,6 @@ void ResetStats(PeriodStats &stats)
    stats.win_rate = 0.0;
    stats.loss_rate = 0.0;
    stats.trading_activity = 0.0;
-   stats.max_deposit_load = 0.0;
-   stats.maximum_drawdown = 0.0;
-   stats.maximum_drawdown_pct = 0.0;
 }
 
 void RefreshIdentityCache()
@@ -143,33 +136,68 @@ void CollectOpenPositionStats(int &positions_total, double &floating_pl)
    }
 }
 
-void CalcPeriodStats(
-   PeriodStats &stats,
-   const datetime from_time,
-   const datetime now_server,
-   const int period_days,
-   const double deposit_load_percent
-)
+void AddDealToStats(PeriodStats &stats, const long deal_type, const double deal_volume, const double net_profit)
 {
-   ResetStats(stats);
-   stats.max_deposit_load = deposit_load_percent;
+   stats.trades++;
+   stats.volume += deal_volume;
+   stats.profit += net_profit;
 
-   if(!HistorySelect(from_time, now_server))
+   // For close deals: SELL usually closes long, BUY usually closes short.
+   if(deal_type == DEAL_TYPE_SELL)
+      stats.trades_long++;
+   else if(deal_type == DEAL_TYPE_BUY)
+      stats.trades_short++;
+
+   if(net_profit > 0.0)
+      stats.profit_trades++;
+   else if(net_profit < 0.0)
+      stats.loss_trades++;
+}
+
+void FinalizeStats(PeriodStats &stats, const int period_days, const uchar &activity[])
+{
+   if(stats.trades > 0)
+   {
+      stats.win_rate = 100.0 * (double)stats.profit_trades / (double)stats.trades;
+      stats.loss_rate = 100.0 * (double)stats.loss_trades / (double)stats.trades;
+   }
+
+   int active = 0;
+   int n = ArraySize(activity);
+   for(int i = 0; i < n; i++)
+   {
+      if(activity[i] != 0)
+         active++;
+   }
+
+   stats.active_days = active;
+   stats.trading_activity = 100.0 * (double)active / (double)period_days;
+}
+
+void CalcRecentStats(PeriodStats &day_stats, PeriodStats &week_stats, PeriodStats &month_stats, const datetime now_server)
+{
+   ResetStats(day_stats);
+   ResetStats(week_stats);
+   ResetStats(month_stats);
+
+   uchar day_activity[];
+   uchar week_activity[];
+   uchar month_activity[];
+   ArrayResize(day_activity, 1);
+   ArrayResize(week_activity, 7);
+   ArrayResize(month_activity, 30);
+   ArrayInitialize(day_activity, 0);
+   ArrayInitialize(week_activity, 0);
+   ArrayInitialize(month_activity, 0);
+
+   datetime from_month = now_server - MONTH_WINDOW_SEC;
+   if(!HistorySelect(from_month, now_server))
+   {
+      FinalizeStats(day_stats, 1, day_activity);
+      FinalizeStats(week_stats, 7, week_activity);
+      FinalizeStats(month_stats, 30, month_activity);
       return;
-
-   int tracked_days = period_days;
-   if(tracked_days < 1)
-      tracked_days = 1;
-   if(tracked_days > MAX_PERIOD_DAYS)
-      tracked_days = MAX_PERIOD_DAYS;
-
-   uchar activity_days[];
-   ArrayResize(activity_days, tracked_days);
-   ArrayInitialize(activity_days, 0);
-
-   double running_profit = 0.0;
-   double peak_profit = 0.0;
-   double max_drawdown = 0.0;
+   }
 
    int deals = HistoryDealsTotal();
    for(int i = 0; i < deals; i++)
@@ -183,7 +211,11 @@ void CalcPeriodStats(
          continue;
 
       datetime deal_time = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
-      if(deal_time < from_time || deal_time > now_server)
+      if(deal_time < from_month || deal_time > now_server)
+         continue;
+
+      int day_index = (int)((now_server - deal_time) / DAY_WINDOW_SEC);
+      if(day_index < 0 || day_index >= 30)
          continue;
 
       double deal_volume = HistoryDealGetDouble(ticket, DEAL_VOLUME);
@@ -193,55 +225,25 @@ void CalcPeriodStats(
       double net_profit  = deal_profit + commission + swap;
       long deal_type     = HistoryDealGetInteger(ticket, DEAL_TYPE);
 
-      stats.trades++;
-      stats.volume += deal_volume;
-      stats.profit += net_profit;
+      AddDealToStats(month_stats, deal_type, deal_volume, net_profit);
+      month_activity[day_index] = 1;
 
-      // Exit SELL usually closes long; exit BUY usually closes short.
-      if(deal_type == DEAL_TYPE_SELL)
-         stats.trades_long++;
-      else if(deal_type == DEAL_TYPE_BUY)
-         stats.trades_short++;
+      if(day_index < 7)
+      {
+         AddDealToStats(week_stats, deal_type, deal_volume, net_profit);
+         week_activity[day_index] = 1;
+      }
 
-      if(net_profit > 0.0)
-         stats.profit_trades++;
-      else if(net_profit < 0.0)
-         stats.loss_trades++;
-
-      int day_index = (int)((now_server - deal_time) / DAY_WINDOW_SEC);
-      if(day_index >= 0 && day_index < tracked_days)
-         activity_days[day_index] = 1;
-
-      running_profit += net_profit;
-      if(running_profit > peak_profit)
-         peak_profit = running_profit;
-
-      double drawdown = peak_profit - running_profit;
-      if(drawdown > max_drawdown)
-         max_drawdown = drawdown;
+      if(day_index == 0)
+      {
+         AddDealToStats(day_stats, deal_type, deal_volume, net_profit);
+         day_activity[0] = 1;
+      }
    }
 
-   if(stats.trades > 0)
-   {
-      stats.win_rate = 100.0 * (double)stats.profit_trades / (double)stats.trades;
-      stats.loss_rate = 100.0 * (double)stats.loss_trades / (double)stats.trades;
-   }
-
-   int active_count = 0;
-   for(int d = 0; d < tracked_days; d++)
-      if(activity_days[d] != 0)
-         active_count++;
-
-   stats.active_days = active_count;
-   stats.trading_activity = 100.0 * (double)active_count / (double)tracked_days;
-   stats.maximum_drawdown = max_drawdown;
-
-   double estimated_start_balance = AccountInfoDouble(ACCOUNT_BALANCE) - stats.profit;
-   if(estimated_start_balance <= 0.0)
-      estimated_start_balance = AccountInfoDouble(ACCOUNT_BALANCE);
-
-   if(estimated_start_balance > 0.0)
-      stats.maximum_drawdown_pct = 100.0 * max_drawdown / estimated_start_balance;
+   FinalizeStats(day_stats, 1, day_activity);
+   FinalizeStats(week_stats, 7, week_activity);
+   FinalizeStats(month_stats, 30, month_activity);
 }
 
 string BuildRequestHeaders()
@@ -290,10 +292,7 @@ string BuildPayload(
    PeriodStats day_stats;
    PeriodStats week_stats;
    PeriodStats month_stats;
-
-   CalcPeriodStats(day_stats, now_server - DAY_WINDOW_SEC, now_server, 1, deposit_load);
-   CalcPeriodStats(week_stats, now_server - WEEK_WINDOW_SEC, now_server, 7, deposit_load);
-   CalcPeriodStats(month_stats, now_server - MONTH_WINDOW_SEC, now_server, 30, deposit_load);
+   CalcRecentStats(day_stats, week_stats, month_stats, now_server);
 
    return "{"
       "\"login\":" + (string)g_identity.login + ","
@@ -310,6 +309,7 @@ string BuildPayload(
       "\"margin\":" + JsonNumber(margin) + ","
       "\"free_margin\":" + JsonNumber(free_margin) + ","
       "\"margin_level\":" + JsonNumber(margin_level) + ","
+      "\"deposit_load\":" + JsonNumber(deposit_load) + ","
       "\"positions_total\":" + (string)positions_total + ","
       "\"orders_total\":" + (string)orders_total + ","
       "\"floating_pl\":" + JsonNumber(floating_pl) + ","
@@ -323,9 +323,6 @@ string BuildPayload(
       "\"day_loss_trades\":" + (string)day_stats.loss_trades + ","
       "\"day_loss_trade_rate\":" + JsonNumber(day_stats.loss_rate) + ","
       "\"day_trading_activity\":" + JsonNumber(day_stats.trading_activity) + ","
-      "\"day_max_deposit_load\":" + JsonNumber(day_stats.max_deposit_load) + ","
-      "\"day_maximum_drawdown\":" + JsonNumber(day_stats.maximum_drawdown) + ","
-      "\"day_maximum_drawdown_pct\":" + JsonNumber(day_stats.maximum_drawdown_pct) + ","
       "\"week_trades\":" + (string)week_stats.trades + ","
       "\"week_trades_long\":" + (string)week_stats.trades_long + ","
       "\"week_trades_short\":" + (string)week_stats.trades_short + ","
@@ -336,9 +333,6 @@ string BuildPayload(
       "\"week_loss_trades\":" + (string)week_stats.loss_trades + ","
       "\"week_loss_trade_rate\":" + JsonNumber(week_stats.loss_rate) + ","
       "\"week_trading_activity\":" + JsonNumber(week_stats.trading_activity) + ","
-      "\"week_max_deposit_load\":" + JsonNumber(week_stats.max_deposit_load) + ","
-      "\"week_maximum_drawdown\":" + JsonNumber(week_stats.maximum_drawdown) + ","
-      "\"week_maximum_drawdown_pct\":" + JsonNumber(week_stats.maximum_drawdown_pct) + ","
       "\"month_trades\":" + (string)month_stats.trades + ","
       "\"month_trades_long\":" + (string)month_stats.trades_long + ","
       "\"month_trades_short\":" + (string)month_stats.trades_short + ","
@@ -349,9 +343,6 @@ string BuildPayload(
       "\"month_loss_trades\":" + (string)month_stats.loss_trades + ","
       "\"month_loss_trade_rate\":" + JsonNumber(month_stats.loss_rate) + ","
       "\"month_trading_activity\":" + JsonNumber(month_stats.trading_activity) + ","
-      "\"month_max_deposit_load\":" + JsonNumber(month_stats.max_deposit_load) + ","
-      "\"month_maximum_drawdown\":" + JsonNumber(month_stats.maximum_drawdown) + ","
-      "\"month_maximum_drawdown_pct\":" + JsonNumber(month_stats.maximum_drawdown_pct) + ","
       "\"last_error\":" + (string)last_error_code
       "}";
 }
