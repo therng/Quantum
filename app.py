@@ -11,6 +11,8 @@ from typing import Dict, List, Literal, Optional, Tuple
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -95,6 +97,21 @@ if not logger.handlers:
     logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="MT5 Heartbeat API", version="3.0.0")
+
+BASE_DIR = Path(__file__).resolve().parent
+ADMIN_DIR = BASE_DIR / "static" / "admin"
+if ADMIN_DIR.exists():
+    app.mount("/admin", StaticFiles(directory=ADMIN_DIR), name="admin")
+
+
+@app.get("/", include_in_schema=False)
+def root_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/admin/")
+
+
+@app.get("/admin", include_in_schema=False)
+def admin_page() -> FileResponse:
+    return FileResponse(ADMIN_DIR / "index.html")
 
 
 def _parse_cors_allow_origins() -> List[str]:

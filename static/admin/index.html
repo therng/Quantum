@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dark Fintech Admin Dashboard</title>
+  <link rel="stylesheet" href="/admin/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Dark Fintech Admin</h1>
+      <p class="subtitle">Mobile-optimized algorithmic trading oversight</p>
+    </div>
+    <button id="refreshButton" class="neon-btn">Refresh</button>
+  </header>
+
+  <section class="panel settings">
+    <h2>Connection</h2>
+    <label>API Base URL
+      <input id="baseUrlInput" type="text" placeholder="http://127.0.0.1:8000" />
+    </label>
+    <label>Read API Key
+      <input id="apiKeyInput" type="password" placeholder="X-API-Key" />
+    </label>
+    <p class="hint">Allowed browser origins must be configured in <code>CORS_ALLOW_ORIGINS</code>.</p>
+  </section>
+
+  <section class="panel" id="dashboardSection">
+    <h2>Dashboard</h2>
+    <div id="algoStatusGrid" class="status-grid"></div>
+    <div class="chart-card">
+      <h3>Growth Trades Curve (%)</h3>
+      <svg id="growthChart" viewBox="0 0 320 140" preserveAspectRatio="none"></svg>
+    </div>
+  </section>
+
+  <section class="panel" id="profilesSection">
+    <h2>Profiles</h2>
+    <div id="profileList" class="profile-list"></div>
+  </section>
+
+  <section class="panel" id="chartsSection">
+    <h2>Charts</h2>
+    <div class="chart-card">
+      <h3>Monthly PnL</h3>
+      <div id="monthlyPnlBars" class="bar-chart"></div>
+    </div>
+    <div class="chart-card">
+      <h3>Drawdown Progress</h3>
+      <div id="drawdownBars" class="progress-list"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="reportsSection">
+    <h2>Reports</h2>
+    <div id="reportsList" class="reports-list"></div>
+  </section>
+
+  <script src="/admin/app.js" defer></script>
+</body>
+</html>
