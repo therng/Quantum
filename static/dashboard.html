@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dark Fintech Admin Dashboard</title>
+  <style>
+    :root {
+      --bg: #05080f;
+      --panel: #0b1120;
+      --panel-2: #121a2f;
+      --text: #e6edf8;
+      --muted: #8090b0;
+      --green: #00ff85;
+      --red: #ff3d71;
+      --cyan: #00d1ff;
+      --border: #1d2b46;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: radial-gradient(circle at top, #0d1529 0, var(--bg) 42%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 14px;
+    }
+    .wrap { max-width: 520px; margin: 0 auto; }
+    h1 { margin: 6px 0 4px; font-size: 1.2rem; }
+    .subtitle { color: var(--muted); font-size: .85rem; margin-bottom: 12px; }
+    .card {
+      background: linear-gradient(170deg, rgba(18,26,47,.95), rgba(9,14,27,.95));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 6px 22px rgba(0,0,0,.25);
+    }
+    .section-title { font-weight: 700; margin: 0 0 8px; font-size: .95rem; }
+    .pill {
+      display: inline-block; border-radius: 999px; padding: 4px 9px; font-size: .75rem;
+      border: 1px solid var(--border); color: var(--muted);
+    }
+    .pill.active { color: #00150a; background: var(--green); border-color: var(--green); font-weight: 700; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .metric { background: rgba(3,7,15,.7); border: 1px solid #15213c; border-radius: 10px; padding: 8px; }
+    .label { color: var(--muted); font-size: .73rem; }
+    .value { font-size: 1rem; margin-top: 2px; }
+    .value.profit { color: var(--green); }
+    .value.loss { color: var(--red); }
+    canvas { width: 100%; height: 148px; border-radius: 10px; background: #060b16; border: 1px solid #15213c; }
+    .profiles { display: grid; gap: 8px; }
+    .profile { border: 1px solid #1a2a49; border-radius: 10px; padding: 9px; background: rgba(6,10,20,.8); }
+    .profile-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+    .bars { display: grid; gap: 6px; }
+    .bar { height: 9px; background: #101a2f; border-radius: 999px; overflow: hidden; }
+    .bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--green), #9affcb); }
+    .bar.red > span { background: linear-gradient(90deg, var(--red), #ff94b3); }
+    .reports { max-height: 220px; overflow-y: auto; display: grid; gap: 6px; }
+    .trade { display:grid; grid-template-columns: 1.1fr .8fr .8fr; gap: 8px; padding: 8px; border-radius: 8px; border:1px solid #192949; background:#091122; }
+    .trade .pl.profit { color: var(--green); font-weight: 700; }
+    .trade .pl.loss { color: var(--red); font-weight: 700; }
+    input { width:100%; margin-top:6px; background:#091122; border:1px solid #1f3157; color:#d8e6ff; padding:8px 10px; border-radius:8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Dark Fintech Admin</h1>
+    <div class="subtitle">Mobile command center with neon risk signals</div>
+
+    <div class="card">
+      <div class="label">API Base URL</div>
+      <input id="apiBase" placeholder="http://127.0.0.1:8000" />
+      <div class="label" style="margin-top:8px;">Read API Key (X-API-Key)</div>
+      <input id="apiKey" type="password" placeholder="read key" />
+    </div>
+
+    <div class="card">
+      <div class="section-title">Dashboard</div>
+      <div id="algoStatus" class="pill">Algo inactive</div>
+      <div style="margin-top:8px;"><canvas id="growthChart" width="480" height="148"></canvas></div>
+      <div class="grid-2" style="margin-top:8px;" id="overviewMetrics"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Profiles</div>
+      <div class="profiles" id="profiles"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Charts</div>
+      <div class="bars" id="chartBars"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Reports</div>
+      <div class="reports" id="reports"></div>
+    </div>
+  </div>
+
+  <script src="/static/dashboard.js"></script>
+</body>
+</html>

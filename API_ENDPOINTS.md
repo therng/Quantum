@@ -15,6 +15,7 @@ Content type:
 - `POST /mt5/heartbeat` requires header `X-API-Key` (WRITE key).
 - Valid WRITE keys come from `MT5_API_KEY` and optional `MT5_API_KEYS` (comma-separated).
 - All `GET` endpoints (except `GET /health`) require header `X-API-Key` (READ key).
+- `GET /` (web dashboard shell) and `GET /health` are public.
 - Valid READ keys come from `MT5_READ_API_KEY` and optional `MT5_READ_API_KEYS` (comma-separated). If unset, READ falls back to WRITE keys.
 
 ## CORS (browser access)
@@ -54,6 +55,15 @@ Success `200`:
   "history_max_points_per_terminal": 10000
 }
 ```
+
+### GET `/`
+
+Returns the mobile-optimized Dark Fintech administration dashboard HTML.
+
+Notes:
+
+- Dashboard calls the API endpoints documented in this file.
+- For browser calls to secured endpoints, provide READ key via `X-API-Key` in the dashboard settings panel.
 
 ### GET `/monitor/system/realtime`
 

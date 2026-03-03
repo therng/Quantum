@@ -12,6 +12,8 @@ from typing import Dict, List, Literal, Optional, Tuple
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 from windows_monitor import MonitorUnavailableError, WindowsSystemMonitor
@@ -95,6 +97,8 @@ if not logger.handlers:
     logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="MT5 Heartbeat API", version="3.0.0")
+WEB_DASHBOARD_FILE = Path(__file__).resolve().parent / "static" / "dashboard.html"
+WEB_STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 def _parse_cors_allow_origins() -> List[str]:
@@ -116,6 +120,16 @@ if _cors_origins:
         allow_credentials=False,
         max_age=600,
     )
+
+if WEB_STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=WEB_STATIC_DIR), name="static")
+
+
+@app.get("/", include_in_schema=False)
+def serve_dashboard() -> FileResponse:
+    if not WEB_DASHBOARD_FILE.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dashboard not found")
+    return FileResponse(WEB_DASHBOARD_FILE)
 
 STARTED_MONOTONIC = time.monotonic()
 _latest_heartbeats: Dict[str, "StoredHeartbeatRecord"] = {}

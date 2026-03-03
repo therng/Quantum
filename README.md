@@ -12,6 +12,7 @@ API reference: `API_ENDPOINTS.md`
 - Exposes frontend endpoints for `day/week/month` summaries and chart curves.
 - Computes risk metrics (`max_deposit_load`, `maximum_drawdown`) from heartbeat history on the backend.
 - Exposes realtime backend host metrics (CPU/RAM) for frontend monitoring.
+- Serves a built-in mobile-first "Dark Fintech" admin dashboard at `/`.
 
 ## Requirements
 
@@ -80,6 +81,7 @@ python -m uvicorn app:app --host 127.0.0.1 --port 8000 --log-level info
 
 - Auth model:
 - `GET /health` is public (no key)
+- `GET /` serves the mobile web dashboard (public)
 - other `GET` endpoints require READ key in `X-API-Key`
 - `POST /mt5/heartbeat` requires WRITE key in `X-API-Key`
 
