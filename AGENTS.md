@@ -20,6 +20,6 @@
 - Production: `gunicorn --bind=0.0.0.0:5000 --reuse-port --workers=1 main:app`
 
 ## API Notes
-- `/` redirects to `/admin/`.
+- `/` returns lightweight API metadata and points clients to `/health`.
 - Protected endpoints use the `X-API-Key` header.
 - `ENDPOINTS.md` is the quick reference for the current HTTP surface.

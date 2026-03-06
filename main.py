@@ -11,8 +11,6 @@ from typing import Dict, List, Literal, Optional, Tuple
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
-from fastapi.responses import FileResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -146,20 +144,14 @@ if not logger.handlers:
 
 app = FastAPI(title="MT5 Heartbeat API", version="3.0.0")
 
-BASE_DIR = Path(__file__).resolve().parent
-ADMIN_DIR = BASE_DIR / "static" / "admin"
-if ADMIN_DIR.exists():
-    app.mount("/admin", StaticFiles(directory=ADMIN_DIR), name="admin")
-
-
 @app.get("/", include_in_schema=False)
-def root_redirect() -> RedirectResponse:
-    return RedirectResponse(url="/admin/")
-
-
-@app.get("/admin", include_in_schema=False)
-def admin_page() -> FileResponse:
-    return FileResponse(ADMIN_DIR / "index.html")
+def root() -> dict[str, object]:
+    return {
+        "ok": True,
+        "service": app.title,
+        "version": app.version,
+        "health": "/health",
+    }
 
 
 def _parse_cors_allow_origins() -> List[str]:
@@ -186,6 +178,7 @@ STARTED_MONOTONIC = time.monotonic()
 _latest_heartbeats: Dict[str, "StoredHeartbeatRecord"] = {}
 _sorted_terminal_ids: List[str] = []
 _heartbeat_history: Dict[str, List["StoredHeartbeatRecord"]] = {}
+_history_points_total = 0
 _store_lock = Lock()
 _system_monitor = WindowsSystemMonitor(CONFIG.system_monitor_min_refresh_sec)
 
@@ -631,23 +624,51 @@ def _summary_from_payload_and_records(
     )
 
 
+def _not_found_terminal(terminal_id: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"No heartbeat found for terminal_id={terminal_id}",
+    )
+
+
+def _get_latest_record(terminal_id: str) -> StoredHeartbeatRecord:
+    with _store_lock:
+        latest = _latest_heartbeats.get(terminal_id)
+
+    if latest is None:
+        raise _not_found_terminal(terminal_id)
+
+    return latest
+
+
 def _get_terminal_state(terminal_id: str) -> Tuple[StoredHeartbeatRecord, List[StoredHeartbeatRecord]]:
     with _store_lock:
         latest = _latest_heartbeats.get(terminal_id)
         history = _heartbeat_history.get(terminal_id, []).copy()
 
     if latest is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No heartbeat found for terminal_id={terminal_id}",
-        )
+        raise _not_found_terminal(terminal_id)
 
     return latest, history
 
 
+def _first_record_index(records: List[StoredHeartbeatRecord], cutoff: int) -> int:
+    left = 0
+    right = len(records)
+
+    while left < right:
+        mid = (left + right) // 2
+        if records[mid].received_at < cutoff:
+            left = mid + 1
+        else:
+            right = mid
+
+    return left
+
+
 def _period_records(records: List[StoredHeartbeatRecord], period: Literal["day", "week", "month"], now_ts: int) -> List[StoredHeartbeatRecord]:
     cutoff = now_ts - _history_window(period)
-    return [record for record in records if record.received_at >= cutoff]
+    return records[_first_record_index(records, cutoff):]
 
 
 def _build_period_summary(terminal_id: str, period: Literal["day", "week", "month"]) -> PeriodSummary:
@@ -733,6 +754,7 @@ def _store_heartbeat(record: StoredHeartbeatRecord) -> None:
     terminal_id = record.payload.terminal_id
     received_at = record.received_at
 
+    global _history_points_total
     with _store_lock:
         if terminal_id not in _latest_heartbeats:
             bisect.insort(_sorted_terminal_ids, terminal_id)
@@ -741,21 +763,25 @@ def _store_heartbeat(record: StoredHeartbeatRecord) -> None:
 
         history = _heartbeat_history.setdefault(terminal_id, [])
         history.append(record)
+        _history_points_total += 1
 
         cutoff = received_at - CONFIG.history_retention_sec
-        while history and history[0].received_at < cutoff:
-            history.pop(0)
+        trimmed = _first_record_index(history, cutoff)
+        if trimmed > 0:
+            del history[:trimmed]
+            _history_points_total -= trimmed
 
         overflow = len(history) - CONFIG.history_max_points_per_terminal
         if overflow > 0:
             del history[:overflow]
+            _history_points_total -= overflow
 
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     with _store_lock:
         tracked = len(_latest_heartbeats)
-        points = sum(len(items) for items in _heartbeat_history.values())
+        points = _history_points_total
 
     return HealthResponse.model_construct(
         ok=True,
@@ -791,7 +817,7 @@ def monitor_system_realtime(force: bool = Query(default=False)) -> SystemRealtim
     dependencies=[Depends(_require_read_api_key)],
 )
 def get_latest_heartbeat(terminal_id: str) -> StoredHeartbeat:
-    latest, _ = _get_terminal_state(terminal_id)
+    latest = _get_latest_record(terminal_id)
     return StoredHeartbeat.model_construct(received_at=latest.received_at, payload=latest.payload)
 
 
@@ -1030,7 +1056,7 @@ def _run() -> None:
     reload_enabled = _parse_bool_env("APP_RELOAD", False)
 
     uvicorn.run(
-        "app:app",
+        "main:app",
         host=host,
         port=port,
         log_level=log_level,

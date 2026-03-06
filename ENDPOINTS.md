@@ -2,8 +2,7 @@
 
 | Method | Path | Auth | Description | Key Params / Body |
 |------|------|------|------|------|
-| GET | / | none | Redirect to admin dashboard | — |
-| GET | /admin | none | Serve admin HTML dashboard | — |
+| GET | / | none | Lightweight API info and health pointer | — |
 | GET | /health | none | Backend health check and stats | — |
 | GET | /monitor/system/realtime | Read API Key | Windows system metrics | query: force |
 | GET | /mt5/heartbeat/latest/{terminal_id} | Read API Key | Latest heartbeat of a terminal | path: terminal_id |

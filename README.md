@@ -6,7 +6,7 @@ A FastAPI backend that receives and stores heartbeat data from MetaTrader 5 (MT5
 ## Architecture
 - **Language**: Python 3.12
 - **Framework**: FastAPI + Uvicorn
-- **No frontend**: API-only backend (redirects `/` to `/admin/` which optionally serves static files from `static/admin/`)
+- **No frontend**: API-only backend with a lightweight root endpoint and JSON APIs
 - **Storage**: In-memory (no persistent database)
 
 ## Key Files
