@@ -5,12 +5,12 @@
 #property strict
 #property description "Whitelist ApiUrl in MT5: Tools > Options > Expert Advisors > Allow WebRequest"
 
-input string ApiUrl                 = "http://127.0.0.1:8000/mt5/heartbeat";
+input string ApiUrl                 = "https://impotently-mazelike-delta.ngrok-free.dev/mt5/heartbeat";
 input string ApiKey                 = "therng";
-input int    PeriodSec              = 30;
-input string TerminalId             = "MT5-A1";
+input int    PeriodSec              = 45;
+input string TerminalId             = "Arisa";
 input int    RequestTimeoutMs       = 8000;   // Increased default to reduce intermittent failures
-input bool   LogSuccess             = false;
+input bool   LogSuccess             = true;
 input bool   SendDisconnectOnDeinit = true;
 
 // New: heavy stats throttle. 1 = every heartbeat, 5 = every 5th heartbeat, etc.
@@ -369,8 +369,7 @@ string BuildPayload(
       "\"month_loss_trades\":" + (string)month_stats.loss_trades + ","
       "\"month_loss_trade_rate\":" + JsonNumber(month_stats.loss_rate) + ","
       "\"month_trading_activity\":" + JsonNumber(month_stats.trading_activity) + ","
-      "\"last_error\":" + (string)last_error_code
-      "}";
+      "\"last_error\":" + (string)last_error_code + "}";
 
    return payload;
 }

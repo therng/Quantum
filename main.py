@@ -902,7 +902,7 @@ def get_dashboard(terminal_id: str) -> HeartbeatDashboard:
 )
 def get_history(
     terminal_id: str,
-    period: Literal["day", "week", "month", "all"] = Query(default="day"),
+    period: Literal["day", "week", "month", "all"] = Query(default="week"),
     limit: int = Query(default=200, ge=1, le=5000),
 ) -> List[StoredHeartbeat]:
     latest, history = _get_terminal_state(terminal_id)
@@ -928,7 +928,7 @@ def get_history(
 )
 def get_curve(
     terminal_id: str,
-    period: Literal["day", "week", "month", "all"] = Query(default="week"),
+    period: Literal["day", "week", "month", "all"] = Query(default="month"),
     limit: int = Query(default=500, ge=1, le=5000),
 ) -> List[CurvePoint]:
     latest, history = _get_terminal_state(terminal_id)
@@ -964,8 +964,8 @@ def get_curve(
 )
 def get_growth(
     terminal_id: str,
-    period: Literal["day", "week", "month", "all"] = Query(default="week"),
-    value_source: Literal["equity", "balance"] = Query(default="equity"),
+    period: Literal["day", "week", "month", "all"] = Query(default="all"),
+    value_source: Literal["equity", "balance"] = Query(default="balance"),
     trade_window: Literal["day", "week", "month"] = Query(default="day"),
     limit: int = Query(default=500, ge=1, le=5000),
 ) -> GrowthSeriesResponse:
