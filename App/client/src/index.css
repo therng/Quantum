@@ -1,0 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Hardcoded to a professional dark mode aesthetic for trading dashboards */
+    --font-sans: 'Space Grotesk', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+
+    --background: 234 30% 5%;
+    --foreground: 0 0% 98%;
+
+    --card: 233 24% 8%;
+    --card-foreground: 0 0% 98%;
+    --card-border: 230 24% 16%;
+
+    --popover: 233 24% 8%;
+    --popover-foreground: 0 0% 98%;
+    --popover-border: 240 10% 12%;
+
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+
+    --secondary: 232 20% 15%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 232 20% 14%;
+    --muted-foreground: 224 8% 66%;
+
+    --accent: 232 22% 17%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 348 83% 47%; /* Rose 500 */
+    --destructive-foreground: 0 0% 98%;
+
+    --success: 142 71% 45%; /* Emerald 500 */
+    --success-foreground: 0 0% 98%;
+
+    --border: 230 20% 18%;
+    --input: 230 20% 18%;
+    --ring: 220 35% 30%;
+
+    --radius: 0.75rem;
+
+    --chart-1: 217 91% 60%; /* Blue */
+    --chart-2: 142 71% 45%; /* Green */
+    --chart-3: 348 83% 47%; /* Red */
+    --chart-4: 280 85% 60%; /* Purple */
+    --chart-5: 35 90% 55%;  /* Orange */
+  }
+
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground antialiased font-sans selection:bg-primary/20 selection:text-primary;
+    background-image: 
+      radial-gradient(circle at 20% 0%, hsl(212 90% 60% / 0.12) 0%, transparent 45%),
+      radial-gradient(circle at 90% 100%, hsl(264 90% 66% / 0.10) 0%, transparent 50%),
+      radial-gradient(circle at 50% 0%, hsl(232 25% 15% / 0.45) 0%, transparent 55%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight font-semibold;
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-card/80 backdrop-blur-xl border border-white/5 shadow-2xl;
+  }
+  
+  .hover-card-effect {
+    @apply transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20 hover:bg-card/90;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-white via-sky-200 to-violet-200;
+  }
+
+  .metric-card {
+    @apply rounded-2xl border border-white/10 bg-card/70 backdrop-blur-xl p-5 transition-all duration-300 hover:border-primary/40 hover:-translate-y-0.5;
+  }
+
+  .metric-card__label {
+    @apply text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-medium;
+  }
+
+  .metric-card__value {
+    @apply mt-2 text-2xl font-semibold;
+  }
+
+  .metric-card__hint {
+    @apply mt-1 text-xs text-muted-foreground;
+  }
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
