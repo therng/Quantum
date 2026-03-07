@@ -12,7 +12,7 @@ from typing import Dict, List, Literal, Optional, Tuple
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from windows_monitor import MonitorUnavailableError, WindowsSystemMonitor
 
@@ -102,6 +102,13 @@ def _parse_port_env(name: str, default: int) -> int:
     if 1 <= port <= 65535:
         return port
     return default
+
+
+def _mt5_ping_microseconds_to_milliseconds(value: int) -> int:
+    if value <= 0:
+        return 0
+
+    return (value + 500) // 1000
 
 
 class AppConfig(BaseModel):
@@ -268,6 +275,15 @@ class HeartbeatPayload(BaseModel):
     orders_total: Optional[int] = Field(default=None, ge=0)
     floating_pl: Optional[float] = None
     last_error: Optional[int] = None
+
+    @field_validator("latency_ms", mode="before")
+    @classmethod
+    def normalize_latency_ms(cls, value: object) -> object:
+        if value is None or value == "":
+            return None
+
+        # The EA forwards TERMINAL_PING_LAST as-is; MT5 reports that value in microseconds.
+        return _mt5_ping_microseconds_to_milliseconds(int(value))
 
 
 class HeartbeatAck(BaseModel):
