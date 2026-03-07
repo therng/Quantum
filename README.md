@@ -5,6 +5,39 @@ A FastAPI backend that receives and stores heartbeat data from MetaTrader 5 (MT5
 
 This repository also contains a separate dashboard app in `App/` built with React, Vite, Express, and Drizzle.
 
+## Quickstart
+
+Run the FastAPI backend and the dashboard as two separate services:
+
+1. Start the FastAPI backend on port `5000`
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 5000 --log-level info
+```
+
+2. In a second terminal, start the dashboard on port `3000`
+
+```bash
+cd App
+cp .env.example .env
+npm install
+npm run dev
+```
+
+3. Set these `App/.env` values before starting the dashboard
+
+```env
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB_NAME
+PORT=3000
+VITE_API_BASE_URL=http://localhost:5000
+VITE_MT5_READ_API_KEY=your-read-key
+```
+
+4. Open the dashboard at `http://localhost:3000`
+
 ## Architecture
 - **Language**: Python 3.12
 - **Framework**: FastAPI + Uvicorn
@@ -28,7 +61,7 @@ This repository also contains a separate dashboard app in `App/` built with Reac
 Copy `App/.env.example` to `App/.env` and set:
 
 - `DATABASE_URL` - Required for the local Express/Drizzle app
-- `PORT` - Optional local app port, defaults to `5000`
+- `PORT` - Optional local app port, defaults to `3000`
 - `VITE_API_BASE_URL` - Optional FastAPI base URL for MT5 read endpoints
 - `VITE_MT5_READ_API_KEY` - Optional read key for protected MT5 endpoints
 

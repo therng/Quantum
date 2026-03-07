@@ -15,7 +15,7 @@ export function TerminalCard({ terminal, onClick }: TerminalCardProps) {
   const growthPercent = Number(terminal.growthPercent ?? 0);
   const equity = Number(terminal.equity ?? 0);
   const balance = Number(terminal.balance ?? 0);
-  const uptime = Number(terminal.uptimeHours ?? 0);
+  const uptime = terminal.uptimeHours;
 
   const isProfitable = growthPercent >= 0;
   const growthColor = isProfitable ? "text-emerald-300" : "text-rose-300";
@@ -118,7 +118,7 @@ export function TerminalCard({ terminal, onClick }: TerminalCardProps) {
           </span>
           <span className="inline-flex items-center gap-1">
             <Clock className="w-3.5 h-3.5" />
-            {uptime}h
+            {uptime == null ? "N/A" : `${Number(uptime).toLocaleString()}h`}
           </span>
         </div>
         <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground/80">

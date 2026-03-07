@@ -31,7 +31,7 @@ export function TerminalDetailModal({ id, onClose }: TerminalDetailModalProps) {
 
   if (!isOpen) return null;
 
-  const growthPercent = Number(terminal?.growthPercent ?? 0);
+  const growthPercent = growth?.latest_growth_pct ?? terminal?.growthPercent ?? 0;
   const isProfitable = growthPercent >= 0;
 
   return (
@@ -151,7 +151,14 @@ export function TerminalDetailModal({ id, onClose }: TerminalDetailModalProps) {
                   <span className="text-sm font-medium">Uptime</span>
                 </div>
                 <p className="text-2xl font-mono font-bold text-foreground">
-                  {Number(terminal.uptimeHours ?? 0)} <span className="text-base text-muted-foreground">hrs</span>
+                  {terminal.uptimeHours == null ? (
+                    "N/A"
+                  ) : (
+                    <>
+                      {Number(terminal.uptimeHours).toLocaleString()}{" "}
+                      <span className="text-base text-muted-foreground">hrs</span>
+                    </>
+                  )}
                 </p>
               </div>
 
